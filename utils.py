@@ -45,6 +45,17 @@ def excel_to_numpy(
         print(f"处理文件时出错: {str(e)}")
         return np.array([])
 
+def grd_to_numpy(file_path):
+    from osgeo import gdal
+    dataset = gdal.Open(file_path)
+    if not dataset:
+        raise RuntimeError("无法打开 GRD 文件")
+
+    # 读取第一个波段
+    band = dataset.GetRasterBand(1)
+    data = band.ReadAsArray()
+    return data
+
 
 
 def plot_contour(

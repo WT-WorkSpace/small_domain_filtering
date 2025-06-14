@@ -37,6 +37,8 @@ if __name__ == "__main__":
         matrix = excel_to_numpy(file_path)
     elif Path(file_path).suffix == ".npy":
         matrix = np.load(file_path)
+    elif Path(file_path).suffix == ".grd":
+        matrix = grd_to_numpy(file_path)
     else:
         ValueError("暂时不支持其他格式文件")
     print("矩阵大小:", matrix.shape)
