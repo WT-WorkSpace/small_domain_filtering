@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from typing import Optional, Tuple, Union, List
 from datetime import datetime
 import os
+from openpyxl import Workbook
 def excel_to_numpy(
         file_path: Union[str, Path],
         sheet_name: str = None,
@@ -57,6 +58,109 @@ def grd_to_numpy(file_path):
     return data
 
 
+def save_grd(array, output_path, x_size=None, y_size=None,
+                 x_min=None, y_min=None, pixel_width=None, pixel_height=None):
+    """
+    将numpy数组保存为GRD文件
+
+    参数:
+        array: numpy数组，要保存的栅格数据
+        output_path: str, 输出GRD文件的路径
+        x_size, y_size: 栅格的列数和行数，如果未提供则使用array的形状
+        x_min, y_min: 栅格左上角的坐标，如果未提供则默认为0
+        pixel_width, pixel_height: 像元宽度和高度，如果未提供则默认为1
+
+    返回:
+        成功保存返回True，否则抛出异常
+    """
+    from osgeo import gdal, osr
+
+    # 获取数组的尺寸
+    if y_size is None and x_size is None:
+        y_size, x_size = array.shape
+    elif y_size is None:
+        y_size = array.shape[0]
+    elif x_size is None:
+        x_size = array.shape[1]
+
+    # 设置默认地理参考参数
+    if x_min is None:
+        x_min = 0
+    if y_min is None:
+        y_min = 0
+    if pixel_width is None:
+        pixel_width = 1
+    if pixel_height is None:
+        pixel_height = 1
+
+    # 创建输出驱动
+    driver = gdal.GetDriverByName("GTiff")
+    # 创建输出数据集
+    dataset = driver.Create(
+        output_path, x_size, y_size, 1, gdal.GDT_Float32)
+
+    if dataset is None:
+        raise RuntimeError(f"无法创建GRD文件: {output_path}")
+
+    geotransform = (x_min, pixel_width, 0, y_min, 0, -pixel_height)
+    dataset.SetGeoTransform(geotransform)
+
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)  # WGS84坐标系
+    dataset.SetProjection(srs.ExportToWkt())
+
+    band = dataset.GetRasterBand(1)
+    band.WriteArray(array)
+
+    # 刷新缓存，确保数据写入文件
+    band.FlushCache()
+
+    # 关闭数据集
+    dataset = None
+    return True
+
+def save_xlsx(array, output_path):
+
+    wb = Workbook()
+    ws = wb.active
+
+    # 获取数组的维度
+    rows, columns = array.shape
+
+    # 将数组数据逐行写入 Excel
+    for i in range(rows):
+        for j in range(columns):
+            # 注意：Excel 行和列索引从 1 开始
+            ws.cell(row=i+1, column=j+1, value=array[i, j])
+
+    # 保存工作簿
+    wb.save(filename=output_path)
+    return True
+
+def numpy_to_xlsx(array, output_path, headers=None, sheet_name="Sheet1"):
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name
+
+    # 添加表头（如果提供）
+    if headers is not None:
+        for j, header in enumerate(headers):
+            ws.cell(row=1, column=j+1, value=header)
+
+    # 确定数据起始行
+    start_row = 2 if headers is not None else 1
+
+    # 获取数组的维度
+    rows, columns = array.shape
+
+    # 写入数据
+    for i in range(rows):
+        for j in range(columns):
+            ws.cell(row=i+start_row, column=j+1, value=array[i, j])
+
+    wb.save(filename=output_path)
+    return True
 
 def plot_contour(
         matrix: np.ndarray,

@@ -31,7 +31,12 @@ if __name__ == "__main__":
     time = get_current_date_formatted()
     stem = Path(file_path).stem
     output_path = os.path.join(output, stem+"-"+ "size" + str(subdomain_size)+"-"+clip_method, time)
-    mkdir_if_not_exist(output_path)
+    output_path_png = os.path.join(output_path,"png")
+    output_path_grd = os.path.join(output_path,"grd")
+    output_path_xlsx = os.path.join(output_path,"xlsx")
+    mkdir_if_not_exist(output_path_png)
+    mkdir_if_not_exist(output_path_grd)
+    mkdir_if_not_exist(output_path_xlsx)
 
     if Path(file_path).suffix == ".xlsx":
         matrix = excel_to_numpy(file_path)
@@ -47,7 +52,7 @@ if __name__ == "__main__":
                  levels=plot_levels,
                  title="raw_data",
                  plot_type=plot_type,
-                 save_path=os.path.join(output_path,"raw_data.png"),
+                 save_path=os.path.join(output_path_png,"raw_data.png"),
                  show_plot=vis)
 
     for i in range(epoch):
@@ -70,8 +75,10 @@ if __name__ == "__main__":
                      levels=plot_levels,
                      title="iter_"+str(i+1)+"data",
                      plot_type=plot_type,
-                     save_path=os.path.join(output_path,"iter_"+str(i+1)+"data.png"),
+                     save_path=os.path.join(output_path_png,"iter_"+str(i+1)+"data.png"),
                      show_plot=vis)
+        save_grd(output_matrix,os.path.join(output_path_grd,"iter_"+str(i+1)+"data.grd"))
+        save_xlsx(output_matrix,os.path.join(output_path_xlsx,"iter_"+str(i+1)+"data.xlsx"))
         print(f"- 第 {i+1} 轮迭代结果已保存在{output_path}")
 
 
