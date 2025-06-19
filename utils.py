@@ -239,6 +239,67 @@ def plot_contour(
     if show_plot:
         plt.show()
 
+def plot_line_chart(data, title="line chart", x_label="x", y_label="y",
+                    line_colors=None, markers=None, line_width=2, marker_size=6,
+                    show_grid=True, show_labels=True, fig_size=(12, 6), show=True):
+    # 确保data是二维列表
+    if not isinstance(data[0], list):
+        data = [data]
+    # 设置默认颜色和标记
+    default_colors = ['blue', 'red', 'green', 'purple', 'orange', 'brown', 'pink', 'gray', 'olive', 'cyan']
+    default_markers = ['o', 's', '^', 'D', 'v', '*', 'p', 'h', '8', 'x']
+    # 处理颜色参数
+    if line_colors is None:
+        line_colors = [default_colors[i % len(default_colors)] for i in range(len(data))]
+    elif not isinstance(line_colors, list):
+        line_colors = [line_colors] * len(data)
+    # 处理标记参数
+    if markers is None:
+        markers = [default_markers[i % len(default_markers)] for i in range(len(data))]
+    elif not isinstance(markers, list):
+        markers = [markers] * len(data)
+
+    plt.figure(figsize=fig_size)
+
+    # 计算所有数据的最大值
+    all_values = [val for sublist in data for val in sublist]
+    max_value = max(all_values) if all_values else 0
+
+    # 绘制每条线
+    for i, series in enumerate(data):
+        x = np.arange(1, len(series) + 1)
+        plt.plot(x, series, f'{markers[i]}-', color=line_colors[i],
+                 linewidth=line_width, markersize=marker_size,
+                 label=f'iter {i}' if len(data) > 1 else None)
+
+        if show_labels:
+            for j, value in enumerate(series):
+                plt.annotate(f'{value}', (x[j], value), textcoords='offset points',
+                             xytext=(0, 5), ha='center', fontsize=9)
+
+    plt.title(title, fontsize=16)
+    plt.xlabel(x_label, fontsize=12)
+    plt.ylabel(y_label, fontsize=12)
+
+    # 设置坐标轴范围
+    plt.xlim(0, max(len(s) for s in data) + 1 if data else 2)
+    plt.ylim(0, max_value + 5)
+
+    # 设置刻度
+    plt.xticks(np.arange(0, max(len(s) for s in data) + 2 if data else 3, 2))
+    plt.yticks(np.arange(0, max_value + 10, 10))
+
+    if show_grid:
+        plt.grid(True, linestyle='--', alpha=0.7)
+
+    if len(data) > 1:
+        plt.legend()
+
+    plt.tight_layout()
+    if show:
+        plt.show()
+    # plt.savefig("custom_chart.png", dpi=300)  # 保存图表
+
 def get_submatrices(matrix, n):
     """
     遍历一个二维 numpy 矩阵，以每个元素为中心提取边长为 n 的子矩阵。
