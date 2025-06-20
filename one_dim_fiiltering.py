@@ -70,7 +70,7 @@ if __name__ == "__main__":
     plot_line_chart(data, show_labels=False, show=True)
     result = [data]
     for i in tqdm.tqdm(range(epoch)):
-        data = np.round(centered_moving_window_variance(data, size),5)
+        data = centered_moving_window_variance(data, size)
         result.append(data)
     plot_line_chart(result, show_labels=False, show=True)
 
