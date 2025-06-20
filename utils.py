@@ -239,9 +239,28 @@ def plot_contour(
     if show_plot:
         plt.show()
 
+
+def calculate_tick_interval(data_range):
+    """根据数据范围计算合适的刻度间隔"""
+    if data_range == 0:
+        return 1
+    # 确定数据范围的数量级
+    magnitude = 10 ** np.floor(np.log10(data_range))
+    # 计算初步间隔
+    preliminary_interval = data_range / 10
+    # 确定合适的间隔（1, 2, 5, 10的倍数）
+    intervals = [1, 2, 5, 10]
+    interval = magnitude
+    for i in intervals:
+        if i * magnitude >= preliminary_interval:
+            interval = i * magnitude
+            break
+    return interval
+
+
 def plot_line_chart(data, title="line chart", x_label="x", y_label="y",
                     line_colors=None, markers=None, line_width=2, marker_size=6,
-                    show_grid=True, show_labels=True, fig_size=(12, 6), show=True):
+                    show_grid=True, show_labels=False, fig_size=(12, 6), show=True):
     # 确保data是二维列表
     if not isinstance(data[0], list):
         data = [data]
@@ -261,9 +280,25 @@ def plot_line_chart(data, title="line chart", x_label="x", y_label="y",
 
     plt.figure(figsize=fig_size)
 
-    # 计算所有数据的最大值
+    # 计算所有数据的最小值和最大值
     all_values = [val for sublist in data for val in sublist]
-    max_value = max(all_values) if all_values else 0
+    if not all_values:
+        min_value, max_value = 0, 10
+    else:
+        min_value = min(all_values)
+        max_value = max(all_values)
+
+    # 计算数据范围并确定合适的刻度间隔
+    data_range = max_value - min_value
+    tick_interval = calculate_tick_interval(data_range)
+
+    # 调整y轴范围，使其是刻度间隔的整数倍
+    y_min = tick_interval * np.floor(min_value / tick_interval)
+    y_max = tick_interval * np.ceil(max_value / tick_interval) + 0.1*(max_value-min_value)
+
+    # 确保y轴范围至少有两个刻度
+    if y_max == y_min:
+        y_max += tick_interval
 
     # 绘制每条线
     for i, series in enumerate(data):
@@ -283,11 +318,11 @@ def plot_line_chart(data, title="line chart", x_label="x", y_label="y",
 
     # 设置坐标轴范围
     plt.xlim(0, max(len(s) for s in data) + 1 if data else 2)
-    plt.ylim(0, max_value + 5)
+    plt.ylim(y_min, y_max)
 
     # 设置刻度
     plt.xticks(np.arange(0, max(len(s) for s in data) + 2 if data else 3, 2))
-    plt.yticks(np.arange(0, max_value + 10, 10))
+    plt.yticks(np.arange(y_min, y_max + tick_interval / 2, tick_interval))
 
     if show_grid:
         plt.grid(True, linestyle='--', alpha=0.7)
