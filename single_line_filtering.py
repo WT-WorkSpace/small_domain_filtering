@@ -5,6 +5,7 @@ from pathlib import Path
 from utils import plot_line_chart, min_mse_average, excel_to_numpy
 import tqdm
 import argparse
+
 def extrapolate_data(data, n=2):
     data = np.array(data)
     left_x = np.arange(-n, 0)
