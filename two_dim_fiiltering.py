@@ -111,7 +111,7 @@ if __name__ == "__main__":
                      save_path=os.path.join(output_path_png, "iter_" + str(i + 1) + "_col.png"),
                      show_plot=vis)
 
-        result = row_result + col_result
+        result = (row_result + col_result)/2
         matrix = result
         plot_contour(result,
                      levels=plot_levels,
