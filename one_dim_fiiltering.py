@@ -1,41 +1,13 @@
-import matplotlib.pyplot as plt
-import numpy as np
-from pkg_resources import non_empty_lines
 from pathlib import Path
-from utils import plot_line_chart, min_mse_average, excel_to_numpy
+from utils.utils import plot_line_chart, min_mse_average, excel_to_numpy, centered_moving_window_variance
 import tqdm
 import argparse
-def extrapolate_data(data, n=2):
-    data = np.array(data)
-    left_x = np.arange(-n, 0)
-    left_slope = data[1] - data[0]
-    left_extrapolation = data[0] + left_slope * (left_x + 1)
-    right_x = np.arange(1, n + 1)
-    right_slope = data[-1] - data[-2]
-    right_extrapolation = data[-1] + right_slope * right_x
-    extended_data = np.concatenate([left_extrapolation, data, right_extrapolation])
-    return extended_data
-def centered_moving_window_variance(data, window_size):
-
-    if window_size <= 0 or window_size % 2 == 0:
-        raise ValueError("窗口大小必须为正奇数")
-
-    radius = (window_size - 1) // 2
-    data = extrapolate_data(data, radius)
-    res = []
-    windows = np.lib.stride_tricks.sliding_window_view(data, window_size)
-
-    for win in windows:
-        min_mean, min_msd = min_mse_average([win[:radius+1], win[window_size - radius-1:]])
-        res.append(min_mean)
-
-    return res
 
 
 def get_args():
     parser = argparse.ArgumentParser(description='one dim Subdomain filtering')
     parser.add_argument('--epoch', type=int, default=5, help='迭代次数')
-    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\two_cube_output.xlsx", help='重力异常文件地址,目前支持xlsx文件')
+    parser.add_argument('--file_path', type=str, default=None, help='重力异常文件地址,目前支持xlsx文件')
     parser.add_argument('--subdomain_size', type=int, default=5, help="子域大小,只能为奇数")
     parser.add_argument('--line', type=str, default="row", help="row 行 / column 列")
     parser.add_argument('--num', type=int, default=80, help="取用的行数或者列数")

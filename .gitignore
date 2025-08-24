@@ -3,7 +3,6 @@
 **egg-info**
 /.idea
 /build
-data/
 /dist
 *.pyc
 *.idea/

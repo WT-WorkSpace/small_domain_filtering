@@ -6,3 +6,7 @@
 ```commandline
  pip install numpy tqdm matplotlib openpyxl -i https://pypi.tuna.tsinghua.edu.cn/simple/
 ```
+
+# 文件说明
+
+gradient_main.py 文件用于运行一维子域滤波向二维的而推广方法

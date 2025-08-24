@@ -1,8 +1,8 @@
 import argparse
 import tqdm
 from multiprocessing import Pool, cpu_count
-from utils import *
-from grid_clip import *
+from utils.utils import *
+from utils.grid_clip import *
 
 def process_submatrix(sub_matrix, clip_method):
     """处理单个子矩阵的函数，用于多进程并行"""
@@ -15,8 +15,8 @@ def process_submatrix(sub_matrix, clip_method):
 def get_args():
     parser = argparse.ArgumentParser(description='Subdomain filtering')
     parser.add_argument('--epoch', type=int, default=5, help='迭代次数')
-    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\output\cube-size5-polygon56\20250616-2013-38\iter_3data.grd", help='重力异常文件地址,目前支持xlsx npy 文件')
-    parser.add_argument('--clip_method', type=str, default="polygon56", help='子域划分类型，可选 mi/ tian/ hua/ polygon56 ')
+    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\gong.grd", help='重力异常文件地址,目前支持xlsx npy 文件')
+    parser.add_argument('--clip_method', type=str, default="hua", help='子域划分类型，可选 mi/ tian/ hua/ polygon56 ')
     parser.add_argument('--subdomain_size', type=int, default=5, help="子域大小,只能为奇数")
     parser.add_argument('--output', type=str, default="output", help='保存路径')
     parser.add_argument('--vis', type=bool, default=False, help='是否可视化等高线图')

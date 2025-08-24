@@ -1,15 +1,19 @@
 import argparse
-import numpy as np
+
 import tqdm
-from multiprocessing import Pool, cpu_count
-from utils import *
-from grid_clip import *
+from multiprocessing import cpu_count
+from utils.utils import *
+from utils.grid_clip import *
 
 
-def partial_derivative(x, y, G, M, D):
+def partial_derivative_x(x, y, G, M, D):
     """计算 g 对 x 的偏导数"""
     denominator = (x**2 + y**2 + D**2) ** 2.5
     return -(3 * G * M * D * x) / denominator
+def partial_derivative_y(x, y, G, M, D):
+    """计算 g 对 y 的偏导数"""
+    denominator = (x**2 + y**2 + D**2) ** 2.5
+    return -(3 * G * M * D * y) / denominator
 
 def min3_mse(clip_grids):
     mean_list = []
@@ -63,25 +67,29 @@ def process_submatrix(sub_matrix, sub_pd_matrix, clip_method):
     return index, min_mean
 
 def calculate_horizontal_derivative(matrix):
+    # 只针对球体
     pd_matrix = np.zeros_like(matrix)
     G = 6.67*1e-3
-    R = 50
-    D = 50
-    sigma = 1
+    R = 40 # 球半径
+    D = 50 # 深度
+    sigma = 1 # 密度
     M=(4/3)*np.pi*(R*R*R)*sigma
 
     for i in range(matrix.shape[0]):
         for j in range(matrix.shape[0]):
-            x =  j*1 - 80
-            y =  i*1 - 80
-            pd_matrix[i][j] = partial_derivative(x, y, G, M, D)
+            x = j*1 - 80 # 球中心的位置
+            y = i*1 - 80 # 球中心的位置
+            pd_x = partial_derivative_x(x, y, G, M, D)
+            pd_y = partial_derivative_y(x, y, G, M, D)
+            pd_matrix[i][j] = np.sqrt(pd_x**2 + pd_y**2)
     return pd_matrix
+
 def get_args():
     parser = argparse.ArgumentParser(description='Subdomain filtering')
     parser.add_argument('--epoch', type=int, default=5, help='迭代次数')
     parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\sphere\sphere.xlsx", help='重力异常文件地址,目前支持xlsx npy 文件')
     parser.add_argument('--clip_method', type=str, default="hua", help='子域划分类型，可选 mi/ tian/ hua/ polygon56 ')
-    parser.add_argument('--subdomain_size', type=int, default=5, help="子域大小,只能为奇数")
+    parser.add_argument('--subdomain_size', type=int, default=9, help="子域大小,只能为奇数")
     parser.add_argument('--output', type=str, default="output", help='保存路径')
     parser.add_argument('--vis', type=bool, default=False, help='是否可视化等高线图')
     parser.add_argument('--plot_levels', type=int, default=50, help='绘制等高线的levels')
@@ -137,6 +145,7 @@ if __name__ == "__main__":
 
         submatrices = get_submatrices(matrix, subdomain_size)
         sub_pd_matrixs = get_submatrices(pd_matrix, subdomain_size)
+
         assert len(submatrices) == matrix.shape[0] * matrix.shape[1]
         output_matrix = np.zeros_like(matrix)
 
