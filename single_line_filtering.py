@@ -2,6 +2,7 @@ from pathlib import Path
 from utils.utils import plot_line_chart, min_mse_average, excel_to_numpy, centered_moving_window_variance
 import tqdm
 import argparse
+import numpy as np
 
 def extrapolate_data(data, n=2):
     data = np.array(data)

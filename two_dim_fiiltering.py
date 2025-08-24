@@ -1,7 +1,7 @@
 import argparse
 import tqdm
-from utils import *
-from grid_clip import *
+from utils.utils import *
+from utils.grid_clip import *
 
 def extrapolate_data(data, n=2):
     data = np.array(data)
@@ -34,7 +34,7 @@ def centered_moving_window_variance(data, window_size):
 def get_args():
     parser = argparse.ArgumentParser(description='one dim Subdomain filtering')
     parser.add_argument('--epoch', type=int, default=5, help='迭代次数')
-    parser.add_argument('--file_path', type=str, default=r"E:\code\my_project\small_domain_filtering\data\two_cube_output.xlsx", help='重力异常文件地址,目前支持xlsx文件')
+    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\gong.grd", help='重力异常文件地址,目前支持xlsx文件')
     parser.add_argument('--subdomain_size', type=int, default=5, help="子域大小,只能为奇数")
     parser.add_argument('--output', type=str, default="output", help='保存路径')
     parser.add_argument('--plot_levels', type=int, default=50, help='绘制等高线的levels')
