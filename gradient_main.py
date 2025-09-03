@@ -22,7 +22,7 @@ def sample_along_tangent(matrix, tangent_direction, num_points=5, step=1.0):
 
     for k in range(-half, half+1):
         dx = k * step * np.cos(tangent_direction)
-        dy = - k * step * np.sin(tangent_direction)
+        dy = k * step * np.sin(tangent_direction)
 
         # 新坐标
         sample_x = x_coords + dx
@@ -65,22 +65,15 @@ def calculate_tangent_equations(matrix, tangent_direction):
     return equations
 
 
-
 def calculate_tangent_direction(matrix):
-    """计算矩阵每个点的切线方向（最大斜率方向的切线）和斜率大小"""
-    # 计算x和y方向的一阶偏导数
-    dx, dy = np.gradient(matrix)
-
-    # 梯度大小（斜率强度）
+    dy, dx = np.gradient(matrix)
     grad_magnitude = np.sqrt(dx**2 + dy**2)
-
-    # 梯度方向（法向量方向）
     grad_direction = np.arctan2(dy, dx)
 
-    # 切线方向 = 梯度方向 + 90度
-    tangent_direction = grad_direction  + np.pi / 2
+    # u = dx / (grad_magnitude + 1e-10)
+    # v = dy / (grad_magnitude + 1e-10)
 
-    return tangent_direction, grad_magnitude
+    return grad_direction, grad_magnitude
 
 def plot_tangent(matrix, directions, magnitudes, save_path, show_plot=False):
     """可视化切线方向和斜率大小"""
@@ -88,7 +81,6 @@ def plot_tangent(matrix, directions, magnitudes, save_path, show_plot=False):
     import matplotlib.cm as cm
 
     plt.figure(figsize=(10, 8))
-    plt.imshow(matrix, cmap='gray', alpha=0.5)
 
     # 每隔一定间隔绘制箭头
     step = max(1, int(min(matrix.shape) / 50))
