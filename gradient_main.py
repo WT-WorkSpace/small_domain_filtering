@@ -76,12 +76,13 @@ def calculate_tangent_direction(matrix):
     return grad_direction, grad_magnitude
 
 def plot_tangent(matrix, directions, magnitudes, save_path, show_plot=False):
-    """可视化切线方向和斜率大小"""
+    """可视化切线方向和斜率大小，并沿Y轴翻转显示"""
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
+    import numpy as np
 
     plt.figure(figsize=(10, 8))
-
+    # plt.imshow(matrix, cmap='gray', alpha=0.5)
     # 每隔一定间隔绘制箭头
     step = max(1, int(min(matrix.shape) / 50))
     x = np.arange(0, matrix.shape[1], step)
@@ -89,6 +90,7 @@ def plot_tangent(matrix, directions, magnitudes, save_path, show_plot=False):
     X, Y = np.meshgrid(x, y)
 
     # 计算箭头的x和y分量
+    directions = np.pi- directions
     U = np.cos(directions[::step, ::step])
     V = np.sin(directions[::step, ::step])
 
@@ -101,7 +103,10 @@ def plot_tangent(matrix, directions, magnitudes, save_path, show_plot=False):
 
     plt.colorbar(label='Slope Magnitude')
     plt.title('Tangent Directions (Max Slope)')
-    plt.axis('off')
+
+    # === 关键：沿Y轴翻转 ===
+    plt.gca().invert_yaxis()
+    plt.gca().xaxis.set_ticks_position('top')
 
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -109,6 +114,7 @@ def plot_tangent(matrix, directions, magnitudes, save_path, show_plot=False):
     if show_plot:
         plt.show()
     plt.close()
+
 
 def split_odd_list(lst):
     """

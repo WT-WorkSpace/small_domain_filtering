@@ -253,6 +253,7 @@ def plot_contour(
         ax.set_aspect(aspect, adjustable='box')
 
     fig.tight_layout()
+    plt.gca().xaxis.set_ticks_position('top')
 
     if save_path:
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
