@@ -3,7 +3,7 @@ import tqdm
 from multiprocessing import Pool, cpu_count
 from utils.utils import *
 from utils.grid_clip import *
-
+from utils.surfer_grd_reader import read_surfer_grd
 def process_submatrix(sub_matrix, clip_method):
     """处理单个子矩阵的函数，用于多进程并行"""
     index = sub_matrix[0]
@@ -53,7 +53,8 @@ if __name__ == "__main__":
     elif Path(file_path).suffix == ".npy":
         matrix = np.load(file_path)
     elif Path(file_path).suffix == ".grd":
-        matrix = grd_to_numpy(file_path)
+        matrix = read_surfer_grd(file_path)["data"]
+        # matrix = grd_to_numpy(file_path)
     else:
         raise ValueError("暂时不支持其他格式文件")
     print("矩阵大小:", matrix.shape)

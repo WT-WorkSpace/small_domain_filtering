@@ -3,6 +3,7 @@ from multiprocessing import cpu_count
 from utils.utils import *
 from utils.grid_clip import *
 from scipy.ndimage import map_coordinates
+from utils.surfer_grd_reader import read_surfer_grd
 
 def sample_along_tangent(matrix, tangent_direction, num_points=5, step=1.0):
     """
@@ -198,7 +199,7 @@ if __name__ == "__main__":
     elif Path(file_path).suffix == ".npy":
         matrix = np.load(file_path)
     elif Path(file_path).suffix == ".grd":
-        matrix = grd_to_numpy(file_path)
+        matrix = read_surfer_grd(file_path)["data"]
     else:
         raise ValueError("暂时不支持其他格式文件")
     print("矩阵大小:", matrix.shape)
