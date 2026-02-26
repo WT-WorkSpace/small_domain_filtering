@@ -167,12 +167,6 @@ def generate_lines_angle(matrix_shape, angle_deg):
     return lines
 
 
-
-
-
-
-
-
 def plot_lines_on_matrix(matrix, lines, save_path=None, show=True):
     """
     将线段轨迹画在矩阵上，每条线独立显示
