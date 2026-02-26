@@ -161,7 +161,7 @@ def split_odd_list(lst):
 def get_args():
     parser = argparse.ArgumentParser(description='Subdomain filtering with tangent analysis')
     parser.add_argument('--epoch', type=int, default=5, help='迭代次数')
-    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\sphere\sphere.xlsx", help='重力异常文件地址,目前支持xlsx npy 文件')
+    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\complex\gravity_forward_complex.npy", help='重力异常文件地址,目前支持xlsx npy 文件')
     parser.add_argument('--subdomain_size', type=int, default=5, help="子域大小,只能为奇数")
     parser.add_argument('--output', type=str, default="output", help='保存路径')
     parser.add_argument('--vis', type=bool, default=False, help='是否可视化等高线图')
@@ -203,8 +203,6 @@ if __name__ == "__main__":
     else:
         raise ValueError("暂时不支持其他格式文件")
     print("矩阵大小:", matrix.shape)
-
-
 
     # 绘制原始数据等高线
     plot_contour(matrix,

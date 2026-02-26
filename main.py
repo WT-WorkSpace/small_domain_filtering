@@ -1,3 +1,7 @@
+# 多进程下必须先指定非 GUI 后端，避免 worker 中 tkinter "main thread is not in main loop"
+import matplotlib
+matplotlib.use("Agg")
+
 import argparse
 import tqdm
 from multiprocessing import Pool, cpu_count
@@ -15,8 +19,8 @@ def process_submatrix(sub_matrix, clip_method):
 def get_args():
     parser = argparse.ArgumentParser(description='Subdomain filtering')
     parser.add_argument('--epoch', type=int, default=5, help='迭代次数')
-    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\sphere\sphere.xlsx", help='重力异常文件地址,目前支持xlsx npy 文件')
-    parser.add_argument('--clip_method', type=str, default="mi", help='子域划分类型，可选 mi/ tian/ hua/ polygon56 ')
+    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\complex\gravity_forward_complex.npy", help='重力异常文件地址,目前支持xlsx npy 文件')
+    parser.add_argument('--clip_method', type=str, default="hua", help='子域划分类型，可选 mi/ tian/ hua/ polygon56 ')
     parser.add_argument('--subdomain_size', type=int, default=5, help="子域大小,只能为奇数")
     parser.add_argument('--output', type=str, default="output", help='保存路径')
     parser.add_argument('--vis', type=bool, default=False, help='是否可视化等高线图')

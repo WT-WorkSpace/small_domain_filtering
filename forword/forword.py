@@ -189,45 +189,6 @@ def _plot_and_save(coordinates, data, field, image_path, add_contours=False, cma
     print(f"正演图像已保存: {image_path}")
 
 
-def run_complex_example():
-    """
-    较复杂的重力异常正演示例：多个不同深度、尺度与密度的棱柱，
-    模拟基底隆起、局部高密度体、线性构造等叠加效应。
-    """
-    # 棱柱 (西, 东, 南, 北, 底, 顶)，单位 m
-    prisms = [
-        # 1. 深部大范围基底隆起（中等密度）
-        [0, 8000, -6000, 6000, -5000, -2500],
-        # 2. 浅部高密度矿化体（偏北东）
-        [1000, 4000, 2000, 5000, -1200, -400],
-        # 3. 另一浅部高密度体（西南）
-        [-5000, -2000, -4000, -1000, -800, -200],
-        # 4. 北西向条带状异常（似断裂/岩墙）
-        [-3000, -1500, 3000, 5000, -2000, -600],
-        # 5. 小尺度局部异常（东南角）
-        [5000, 7000, -5000, -3000, -1500, -700],
-        # 6. 中部低密度凹陷（密度低于围岩，用较低密度表示相对亏损）
-        [-2000, 0, -1000, 1000, -2500, -1200],
-    ]
-    # 密度 kg/m³：基底 / 矿化体×2 / 岩墙 / 东南异常 / 凹陷（相对低）
-    densities = [2850, 3400, 3200, 3100, 3050, 2550]
-
-    region = (0, 10000, 0, 10000)
-    coordinates, g_z = prism_gravity_forward(
-        prism=prisms,
-        density=densities,
-        region=region,
-        shape=(120, 120),
-        height=20.0,
-        field="g_z",
-        image_path="gravity_forward_complex.png",
-        npy_path="gravity_forward_complex.npy",
-        add_contours=True,
-        cmap="RdYlBu_r",  # 红-黄-蓝，便于区分正负异常
-        output_dir=OUTPUT_DIR,
-    )
-    return coordinates, g_z
-
 
 def run_four_bodies_example():
     """
@@ -313,8 +274,117 @@ def run_sphere_example():
     return coordinates, g_z
 
 
+
+def run_cuboid_example():
+    """
+    单一 长方体 正演
+    """
+    # 棱柱 (西, 东, 南, 北, 底, 顶)，单位 m
+    prisms = [
+        [1500, 8500 , 4500, 5500, -2500 , 2500],
+    ]
+    # 密度 kg/m³：基底 / 矿化体×2 / 岩墙 / 东南异常 / 凹陷（相对低）
+    densities = [3300]
+
+    region = (0, 10000, 0, 10000)
+    coordinates, g_z = prism_gravity_forward(
+        prism=prisms,
+        density=densities,
+        region=region,
+        shape=(100, 100),
+        height=20.0,
+        field="g_z",
+        image_path="gravity_forward_cuboid.png",
+        npy_path="gravity_forward_cuboid.npy",
+        add_contours=True,
+        cmap="RdYlBu_r",  # 红-黄-蓝，便于区分正负异常
+        output_dir=OUTPUT_DIR,
+    )
+    return coordinates, g_z
+
+
+
+def run_two_cuboid_example():
+    """
+    两个 长方体 排列 正演
+    """
+    # 棱柱 (西, 东, 南, 北, 底, 顶)，单位 m
+    prisms = [
+        [2000, 4000 , 2000, 8000, -2500 , -500],
+        [6000, 8000 , 2000, 8000, -2500 , -500]
+    ]
+
+    densities = [3300, 3300 ]
+
+    region = (0, 10000, 0, 10000)
+    coordinates, g_z = prism_gravity_forward(
+        prism=prisms,
+        density=densities,
+        region=region,
+        shape=(100, 100),
+        height=20.0,
+        field="g_z",
+        image_path="gravity_forward_two_cuboid.png",
+        npy_path="gravity_forward_two_cuboid.npy",
+        add_contours=True,
+        cmap="RdYlBu_r",  # 红-黄-蓝，便于区分正负异常
+        output_dir=OUTPUT_DIR,
+    )
+    return coordinates, g_z
+
+
+
+
+def run_complex_example():
+    """
+    较复杂的重力异常正演示例：多个不同深度、尺度与密度的棱柱，
+    模拟基底隆起、局部高密度体、线性构造等叠加效应。
+    区域为 (0, 10000, 0, 10000)，单位 m。
+    """
+    # 棱柱 (西, 东, 南, 北, 底, 顶)，单位 m，全部落在 [0,10000]×[0,10000]
+    prisms = [
+
+        [0, 3000, 9000, 9500, -2500, -500],
+        [2500, 3000, 6500, 9500, -2500, -500],
+        [3000, 5500, 6500, 7000, -2500, -500],
+        [5000, 5500, 4000, 6500, -2500, -500],
+        [5500, 8000, 4000, 4500, -2500, -500],
+        [7500, 8000, 1500, 4000, -2500, -500],
+        [8000, 10000, 1500, 2000, -2500, -500],
+
+        [1000, 3000, 1000, 2500, -2500, -500],
+        [2000, 3000, 2500, 3500, -2500, -500],
+
+        [7000, 8000, 7500, 9000, -2500, -500],
+
+    ]
+
+    densities = [3200, 3600, 3600, 3400, 3800, 3800,3800,    2800,2800,3400]
+
+    region = (0, 10000, 0, 10000)
+    coordinates, g_z = prism_gravity_forward(
+        prism=prisms,
+        density=densities,
+        region=region,
+        shape=(120, 120),
+        height=20.0,
+        field="g_z",
+        image_path="gravity_forward_complex.png",
+        npy_path="gravity_forward_complex.npy",
+        add_contours=True,
+        cmap="RdYlBu_r",  # 红-黄-蓝，便于区分正负异常
+        output_dir=OUTPUT_DIR,
+    )
+    return coordinates, g_z
+
+
+
+
+
 if __name__ == "__main__":
     # 运行四地质体（B1–B4）正演示例，与参考图类似
-    coordinates, g_z = run_four_bodies_example()
-    # 运行球体正演示例（棱柱+球体可同时用 spheres 参数）
-    coordinates, g_z = run_sphere_example()
+    # coordinates, g_z = run_four_bodies_example()
+    # # 运行球体正演示例（棱柱+球体可同时用 spheres 参数）
+    coordinates, g_z = run_complex_example()
+
+    # coordinates, g_z = run_cuboid_example()
