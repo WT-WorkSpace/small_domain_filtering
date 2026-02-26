@@ -86,6 +86,41 @@ coordinates, g_z = prism_gravity_forward(
 # 文件保存在 forward_output/ 下
 ```
 
+### 添加球体
+
+均匀球体在观测点外部产生的重力场等价于**质心处同质量点质量**，通过参数 `spheres` 传入，可与棱柱同时使用。
+
+每个球体为元组 **`(easting, northing, depth, radius, density)`**：
+
+- `easting`, `northing`：球心水平坐标 (m)
+- `depth`：埋深 (m)，**正数表示参考面以下**
+- `radius`：半径 (m)
+- `density`：密度 (kg/m³)
+
+示例：一个球心在 (5000, 5000)、埋深 800 m、半径 400 m、密度 3200 kg/m³ 的球体，与棱柱叠加正演：
+
+```python
+from forword import prism_gravity_forward, OUTPUT_DIR
+
+prism = [0, 10000, 0, 10000, -2000, -500]   # 一层板
+density = 2700
+# 球体：(东, 北, 埋深, 半径, 密度)
+spheres = [(5000, 5000, 800, 400, 3200)]
+
+coordinates, g_z = prism_gravity_forward(
+    prism=prism,
+    density=density,
+    spheres=spheres,
+    region=(0, 10000, 0, 10000),
+    shape=(80, 80),
+    image_path="gravity_with_sphere.png",
+    npy_path="gravity_with_sphere.npy",
+    output_dir=OUTPUT_DIR,
+)
+```
+
+仅球体、无棱柱时，传 `prism=[]` 并指定 `region` 即可。
+
 ### 常用参数
 
 | 参数 | 说明 | 默认 |
@@ -101,6 +136,8 @@ coordinates, g_z = prism_gravity_forward(
 | `add_contours` | 是否叠加等值线 | False |
 | `cmap` | 色标名称（如 "viridis", "RdYlBu_r"） | "viridis" |
 | `output_dir` | 输出目录 | `OUTPUT_DIR`（即 "forward_output"） |
+| `outline_polygons` | 图上叠加轮廓多边形列表 | None |
+| `spheres` | 球体列表，每项 (easting, northing, depth, radius, density) | None |
 
 ### 可选场分量 `field`
 
