@@ -4,6 +4,7 @@ import tqdm
 import argparse
 import numpy as np
 
+
 def extrapolate_data(data, n=2):
     data = np.array(data)
     left_x = np.arange(-n, 0)
@@ -14,6 +15,7 @@ def extrapolate_data(data, n=2):
     right_extrapolation = data[-1] + right_slope * right_x
     extended_data = np.concatenate([left_extrapolation, data, right_extrapolation])
     return extended_data
+
 def centered_moving_window_variance(data, window_size):
 
     if window_size <= 0 or window_size % 2 == 0:

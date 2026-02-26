@@ -6,6 +6,12 @@ from typing import Optional, Tuple, Union, List
 from datetime import datetime
 import os
 from openpyxl import Workbook
+
+import matplotlib as mpl
+
+
+
+
 def excel_to_numpy(
         file_path: Union[str, Path],
         sheet_name: str = None,
@@ -161,6 +167,9 @@ def numpy_to_xlsx(array, output_path, headers=None, sheet_name="Sheet1"):
 
     wb.save(filename=output_path)
     return True
+
+
+
 def plot_contour(
         matrix: np.ndarray,
         title: str = "data",
@@ -177,20 +186,56 @@ def plot_contour(
     """
     将 NumPy 二维矩阵绘制成等高线图
 
-    参数:
-        matrix: 输入的二维 NumPy 矩阵
-        title: 图表标题
-        figsize: 图表大小
-        cmap: 颜色映射名称
-        levels: 等高线级别数或自定义级别列表
-        show_colorbar: 是否显示颜色条
-        plot_type: 'filled' / 'contour' / '3d'
-        save_path: 图表保存路径
-        show_plot: 是否显示图表
-        y_origin: 'upper' 使Y轴向下增大（与图像索引一致），'lower' 使Y轴向上增大（数学坐标）
-        aspect: 2D 图的坐标轴比例，'equal'/'auto'/None
+    红色=最大值，紫色=最小值（默认会强制使用类似 turbo 的配色，即使 cmap 仍保持入参不变）
     """
-    # 坐标网格（注意：这里的 X 对应列索引，Y 对应行索引）
+    if matrix.ndim != 2:
+        raise ValueError("matrix 必须是二维数组")
+
+    # ---- 颜色映射：保证 紫(小) -> 红(大) ----
+    # 不改动入参，但默认入参是 viridis（不符合你想要的红最大/紫最小），因此这里内部做映射：
+    # 1) 若用户没刻意指定（仍是默认 viridis），则改用 turbo
+    # 2) 若 matplotlib 无 turbo，则用自定义紫->红渐变
+    # cmap_to_use = cmap
+    vmin = np.nanmin(matrix)
+    vmax = np.nanmax(matrix)
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+    purple_min = (150 / 255.0, 100 / 255.0, 255 / 255.0)
+    if isinstance(cmap, str) and cmap == "viridis":
+        cm = mpl.colors.LinearSegmentedColormap.from_list(
+            "purple150_100_255_to_red",
+            [
+                purple_min,  # 最小值：指定紫色
+                "#0033ff",  # 蓝
+                "#00c8ff",  # 青
+                "#00ff6a",  # 绿
+                "#ffe600",  # 黄
+                "#ff2a00",  # 红（最大值）
+            ],
+            N=256
+        )
+    else:
+        try:
+            cm = mpl.colormaps[cmap] if isinstance(cmap, str) else cmap
+        except Exception:
+            # 万一用户给了奇怪的 cmap，退回到自定义
+            cm = mpl.colors.LinearSegmentedColormap.from_list(
+                "purple150_100_255_to_red_fallback",
+                [purple_min, "#0033ff", "#00c8ff", "#00ff6a", "#ffe600", "#ff2a00"],
+                N=256
+            )
+
+    # ---- 数值范围：保证颜色与最小/最大值对应稳定 ----
+    vmin = np.nanmin(matrix)
+    vmax = np.nanmax(matrix)
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+    # levels：如果没传，给一个更接近示例图的平滑层级数
+    if levels is None:
+        levels_to_use = 20
+    else:
+        levels_to_use = levels
+
+    # 坐标网格（X 对应列索引，Y 对应行索引）
     ny, nx = matrix.shape
     x = np.arange(nx)
     y = np.arange(ny)
@@ -200,20 +245,19 @@ def plot_contour(
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111, projection='3d')
 
-        surf = ax.plot_surface(X, Y, matrix, cmap=cmap, linewidth=0, antialiased=True)
-        ax.set_title(f"{title} (3D)")
+        surf = ax.plot_surface(X, Y, matrix, cmap=cm, norm=norm, linewidth=0, antialiased=True)
+        # ax.set_title(f"{title} (3D)")
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
+
         if show_colorbar:
             fig.colorbar(surf, shrink=0.5, aspect=5)
 
-        # 3D 情况下也可按需翻转 Y 轴方向
         if y_origin == "upper":
             ax.set_ylim(ax.get_ylim()[::-1])
 
         fig.tight_layout()
-
         if save_path:
             fig.savefig(save_path, dpi=300, bbox_inches='tight')
         if show_plot:
@@ -225,41 +269,46 @@ def plot_contour(
     fig, ax = plt.subplots(figsize=figsize)
 
     if plot_type == 'filled':
-        csf = ax.contourf(X, Y, matrix, levels=levels, cmap=cmap)
-        ax.contour(X, Y, matrix, levels=csf.levels, colors='k', linewidths=0.5)
-        ax.set_title(f"{title} (filled)")
+        csf = ax.contourf(X, Y, matrix, levels=levels_to_use, cmap=cm, norm=norm)
+        cs = ax.contour(X, Y, matrix, levels=csf.levels, colors='k', linewidths=1.5)
+        # 加数字标注（示例图那样）
+        # ax.clabel(cs, inline=True, fontsize=8, fmt='%g')
+
+        # ax.set_title(f"{title} (filled)")
         if show_colorbar:
             fig.colorbar(csf, ax=ax, label='nums')
 
     elif plot_type == 'contour':
-        cs = ax.contour(X, Y, matrix, levels=levels, cmap=cmap, linewidths=2)
-        ax.clabel(cs, inline=True, fontsize=8)
-        ax.set_title(f"{title} (contour)")
+        cs = ax.contour(X, Y, matrix, levels=levels_to_use, cmap=cm, norm=norm, linewidths=1.5)
+        # ax.clabel(cs, inline=True, fontsize=8, fmt='%g')
+        # ax.set_title(f"{title} (contour)")
         if show_colorbar:
             fig.colorbar(cs, ax=ax, label='nums')
 
     else:
         raise ValueError(f"不支持的图表类型: {plot_type}，请选择 'filled', 'contour' 或 '3d'")
 
-    # 坐标轴外观
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
 
-    # 关键：根据期望的原点位置决定是否倒置 Y 轴
+    # 关键：第0行在上方（图像坐标）
     if y_origin == "upper":
-        ax.invert_yaxis()  # 使第0行在顶端显示，Y向下增大
+        ax.invert_yaxis()
 
     if aspect:
         ax.set_aspect(aspect, adjustable='box')
 
-    fig.tight_layout()
-    plt.gca().xaxis.set_ticks_position('top')
+    # x 轴刻度放到上方（用 ax，别用 plt.gca()）
+    ax.xaxis.tick_top()
+    ax.xaxis.set_label_position('top')
 
+    fig.tight_layout()
     if save_path:
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
     if show_plot:
         plt.show()
     plt.close(fig)
+
 
 
 def calculate_tick_interval(data_range):

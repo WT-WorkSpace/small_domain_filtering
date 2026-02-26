@@ -3,6 +3,7 @@ import tqdm
 from utils.utils import *
 from utils.grid_clip import *
 
+
 def extrapolate_data(data, n=2):
     data = np.array(data)
     left_x = np.arange(-n, 0)
@@ -14,112 +15,108 @@ def extrapolate_data(data, n=2):
     extended_data = np.concatenate([left_extrapolation, data, right_extrapolation])
     return extended_data
 
-def centered_moving_window_variance(data, window_size):
 
+def centered_moving_window_variance(data, window_size):
     if window_size <= 0 or window_size % 2 == 0:
         raise ValueError("窗口大小必须为正奇数")
 
     radius = (window_size - 1) // 2
     data = extrapolate_data(data, radius)
     res = []
-    windows = np.lib.stride_tricks.sliding_window_view(data, window_size)
 
+    windows = np.lib.stride_tricks.sliding_window_view(data, window_size)
     for win in windows:
-        min_mean, min_msd = min_mse_average([win[:radius+1], win[window_size - radius-1:]])
+        min_mean, min_msd = min_mse_average(
+            [win[:radius + 1], win[window_size - radius - 1:]]
+        )
         res.append(min_mean)
 
     return res
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description='one dim Subdomain filtering')
-    parser.add_argument('--epoch', type=int, default=5, help='迭代次数')
-    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\gong.grd", help='重力异常文件地址,目前支持xlsx文件')
-    parser.add_argument('--subdomain_size', type=int, default=5, help="子域大小,只能为奇数")
-    parser.add_argument('--output', type=str, default="output", help='保存路径')
-    parser.add_argument('--plot_levels', type=int, default=50, help='绘制等高线的levels')
-    parser.add_argument('--plot_type', type=str, default="filled", help='绘制等高线的类型，可选 filled/ contour/ 3d')
-    parser.add_argument('--vis', type=bool, default=False, help='是否可视化等高线图')
-    # parser.add_argument('--processes', type=int, default=None, help='并行进程数，默认使用CPU核心数')
-    args = parser.parse_args()
-    return args
-
+    parser = argparse.ArgumentParser(description='multi-direction 1D Subdomain filtering')
+    parser.add_argument('--epoch', type=int, default=5)
+    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\gong.grd")
+    parser.add_argument('--subdomain_size', type=int, default=5)
+    parser.add_argument('--output', type=str, default="output")
+    parser.add_argument('--plot_levels', type=int, default=50)
+    parser.add_argument('--plot_type', type=str, default="filled")
+    parser.add_argument('--vis', type=bool, default=False)
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
 
     args = get_args()
-    epoch = args.epoch
-    file_path = args.file_path
-    subdomain_size = args.subdomain_size
-    plot_levels = args.plot_levels
-    plot_type = args.plot_type
-    output = args.output
-    vis = args.vis
+    matrix = grd_to_numpy(args.file_path)
+    print("矩阵大小:", matrix.shape)
 
     time = get_current_date_formatted()
-    stem = Path(file_path).stem
-    output_path = os.path.join(output, stem + "-" + "size_5" , time)
+    stem = Path(args.file_path).stem
+    output_path = os.path.join(args.output, stem, time)
     output_path_png = os.path.join(output_path, "png")
     mkdir_if_not_exist(output_path_png)
 
-    if Path(file_path).suffix == ".xlsx":
-        matrix = excel_to_numpy(file_path)
-    elif Path(file_path).suffix == ".npy":
-        matrix = np.load(file_path)
-    elif Path(file_path).suffix == ".grd":
-        matrix = grd_to_numpy(file_path)
-    else:
-        raise ValueError("暂时不支持其他格式文件")
-    print("矩阵大小:", matrix.shape)
+    for it in range(args.epoch):
+        print(f"\n------ 第 {it + 1} 轮迭代 ------")
 
-    plot_contour(matrix,
-                 levels=plot_levels,
-                 title="raw_data",
-                 plot_type=plot_type,
-                 save_path=os.path.join(output_path_png, "raw_data.png"),
-                 show_plot=vis)
+        h, w = matrix.shape
 
-    for i in range(epoch):
-        print("--------")
-        print(f"- 正在进行第 {i + 1} 轮迭代...")
-        # 行二维计算
-        row_result = []
-        for row in range(matrix.shape[0]):
-            data = matrix[row, :].tolist()
-            data = centered_moving_window_variance(data, subdomain_size)
-            row_result.append(data)
-        row_result = np.array(row_result)
-        plot_contour(row_result,
-                     levels=plot_levels,
-                     title="iter_" + str(i + 1) + "data",
-                     plot_type=plot_type,
-                     save_path=os.path.join(output_path_png, "iter_" + str(i + 1) + "_row.png"),
-                     show_plot=vis)
-        # 列二维计算
-        col_result = []
-        for col in range(matrix.shape[1]):
-            data = matrix[:, col].tolist()
-            data = centered_moving_window_variance(data, subdomain_size)
-            col_result.append(data)
-        col_result = np.array(col_result).T
+        # 0° 行方向
+        row_result = np.array([
+            centered_moving_window_variance(matrix[i, :], args.subdomain_size)
+            for i in range(h)
+        ])
 
-        plot_contour(col_result,
-                     levels=plot_levels,
-                     title="iter_" + str(i + 1) + "data",
-                     plot_type=plot_type,
-                     save_path=os.path.join(output_path_png, "iter_" + str(i + 1) + "_col.png"),
-                     show_plot=vis)
+        # 90° 列方向
+        col_result = np.array([
+            centered_moving_window_variance(matrix[:, j], args.subdomain_size)
+            for j in range(w)
+        ]).T
 
-        result = (row_result + col_result)/2
-        matrix = result
-        plot_contour(result,
-                     levels=plot_levels,
-                     title="iter_" + str(i + 1) + "data",
-                     plot_type=plot_type,
-                     save_path=os.path.join(output_path_png, "iter_" + str(i + 1) + "_data.png"),
-                     show_plot=vis)
-        print(f"- 第 {i + 1} 轮迭代结果已保存在{output_path}")
+        # 45° 主对角线方向
+        diag45 = np.zeros_like(matrix)
+        count45 = np.zeros_like(matrix)
 
-    print("")
-    print("- End, Wishing you a wonderful day! ")
+        for k in range(-(h - 1), w):
+            coords = [(i, i + k) for i in range(h) if 0 <= i + k < w]
+            if len(coords) < args.subdomain_size:
+                continue
+            data = [matrix[i, j] for i, j in coords]
+            filtered = centered_moving_window_variance(data, args.subdomain_size)
+            for (i, j), v in zip(coords, filtered):
+                diag45[i, j] += v
+                count45[i, j] += 1
+
+        diag45 /= np.maximum(count45, 1)
+
+        # 135° 副对角线方向
+        diag135 = np.zeros_like(matrix)
+        count135 = np.zeros_like(matrix)
+
+        for k in range(h + w):
+            coords = [(i, k - i) for i in range(h) if 0 <= k - i < w]
+            if len(coords) < args.subdomain_size:
+                continue
+            data = [matrix[i, j] for i, j in coords]
+            filtered = centered_moving_window_variance(data, args.subdomain_size)
+            for (i, j), v in zip(coords, filtered):
+                diag135[i, j] += v
+                count135[i, j] += 1
+
+        diag135 /= np.maximum(count135, 1)
+
+        # 四方向平均
+        matrix = (row_result + col_result + diag45 + diag135) / 4.0
+
+        plot_contour(
+            matrix,
+            levels=args.plot_levels,
+            title=f"iter_{it + 1}_multi_dir",
+            plot_type=args.plot_type,
+            save_path=os.path.join(output_path_png, f"iter_{it + 1}.png"),
+            show_plot=args.vis
+        )
+
+    print("\n✔ 多方向一维子域滤波完成")
