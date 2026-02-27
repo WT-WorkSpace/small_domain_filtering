@@ -67,7 +67,7 @@ def plot_lines_only_random_color(matrix, lines, save_path=None, show=True):
 def get_args():
     parser = argparse.ArgumentParser("Multi-angle 1D subdomain filtering with line visualization")
     parser.add_argument('--epoch', type=int, default=5)
-    parser.add_argument('--file_path', type=str,  default=r"D:\Code\small_domain_filtering\data\gong.grd")
+    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\complex\gravity_forward_complex.npy", help='输入文件路径，支持 .xlsx / .npy / .grd')
     parser.add_argument('--subdomain_size', type=int, default=5)
     parser.add_argument('--output', type=str, default='output')
     parser.add_argument('--plot_levels', type=int, default=30)
@@ -193,17 +193,19 @@ if __name__ == "__main__":
 
     args = get_args()
 
-    if Path(args.file_path).suffix == ".grd":
-        matrix = grd_to_numpy(args.file_path)
+    if Path(args.file_path).suffix == ".xlsx":
+        matrix = excel_to_numpy(args.file_path)
     elif Path(args.file_path).suffix == ".npy":
         matrix = np.load(args.file_path)
+    elif Path(args.file_path).suffix == ".grd":
+        matrix = grd_to_numpy(args.file_path)
     else:
-        raise ValueError("不支持的文件格式")
+        raise ValueError("不支持的文件格式，目前支持 .xlsx / .npy / .grd")
 
     print("矩阵大小:", matrix.shape)
 
-    # angles = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165]
-    angles = [0,90]
+    angles = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165]
+    # angles = [0, 90]
 
     time_str = get_current_date_formatted()
     stem = Path(args.file_path).stem
