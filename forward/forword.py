@@ -9,6 +9,9 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
+from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import harmonica as hm
 import verde as vd
 
@@ -139,6 +142,15 @@ def prism_gravity_forward(
         outline_polygons=outline_polygons,
     )
 
+    # 若有棱柱，额外保存地下异常 3D 可视化图（xy 范围与 region 一致）
+    if prisms:
+        base, ext = os.path.splitext(os.path.basename(image_path))
+        image_3d_path = base + "_3d" + ext
+        _plot_prisms_3d(prisms, image_3d_path, output_dir=out, region=region)
+        # 同时保存原始长方体分布图（俯视）
+        image_layout_path = base + "_layout" + ext
+        _plot_prisms_layout(prisms, image_layout_path, output_dir=out, region=region)
+
     return coordinates, result
 
 
@@ -182,12 +194,183 @@ def _plot_and_save(coordinates, data, field, image_path, add_contours=False, cma
     ax.set_ylabel("Northing (m)")
     cbar = plt.colorbar(im, ax=ax, label=unit)
     cbar.ax.ticklabel_format(style="plain", useOffset=False)
-    ax.set_title(f"重力正演 - {field}")
     plt.tight_layout()
     plt.savefig(image_path, dpi=150)
     plt.close()
     print(f"正演图像已保存: {image_path}")
 
+
+def _prism_to_3d_faces(prism):
+    """
+    将单个棱柱 (west, east, south, north, bottom, top) 转为 3D 六个面的顶点列表。
+    深度轴：深度 (m) = -upward，即正值向下，与地质习惯一致。
+    """
+    w, e, s, n, bottom, top = prism
+    z_top = -float(top)    # 顶面深度 (m)，较小
+    z_bottom = -float(bottom)  # 底面深度 (m)，较大
+    # 六个面：底面、顶面、前(y=s)、后(y=n)、左(x=w)、右(x=e)
+    faces = [
+        [(w, s, z_bottom), (e, s, z_bottom), (e, n, z_bottom), (w, n, z_bottom)],  # 底面
+        [(w, s, z_top), (e, s, z_top), (e, n, z_top), (w, n, z_top)],              # 顶面
+        [(w, s, z_bottom), (e, s, z_bottom), (e, s, z_top), (w, s, z_top)],        # 前 y=s
+        [(w, n, z_bottom), (e, n, z_bottom), (e, n, z_top), (w, n, z_top)],        # 后 y=n
+        [(w, s, z_bottom), (w, n, z_bottom), (w, n, z_top), (w, s, z_top)],        # 左 x=w
+        [(e, s, z_bottom), (e, n, z_bottom), (e, n, z_top), (e, s, z_top)],        # 右 x=e
+    ]
+    return faces
+
+
+def _plot_prisms_3d(prisms, image_path, colors=None, alpha=0.4, output_dir=None, grid_size=200, region=None):
+    """
+    将地下异常棱柱绘制为 3D 半透明长方体并保存。
+    坐标轴：Easting (m)、Northing (m)、Depth (m, 向下为正)。
+    grid_size：坐标轴网格间距 (m)，三轴统一，默认 200。
+    region：tuple (west, east, south, north)，与正演一致；若提供则 xy 轴范围使用 region，否则由棱柱范围外扩。
+    """
+    if not prisms:
+        return
+    out = output_dir if output_dir is not None else OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
+    save_path = os.path.join(out, os.path.basename(image_path))
+
+    if colors is None:
+        cmap = plt.get_cmap("tab10")
+        colors = [cmap(i % 10) for i in range(len(prisms))]
+    elif len(colors) < len(prisms):
+        colors = list(colors) + [colors[-1]] * (len(prisms) - len(colors))
+
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+
+    for i, prism in enumerate(prisms):
+        faces = _prism_to_3d_faces(prism)
+        poly = Poly3DCollection(
+            faces,
+            facecolor=colors[i],
+            edgecolor=colors[i],
+            linewidths=0.8,
+            alpha=alpha,
+        )
+        ax.add_collection3d(poly)
+
+    # 设置坐标范围：xy 与 region 对应，z 由棱柱深度范围决定，并对齐到 grid_size
+    g = grid_size
+    # 这里的 z 轴使用“深度”(m)，向下为正：top/bottom 通常为负值（upward），取相反数得到深度
+    min_depth = min(-float(p[5]) for p in prisms)      # 顶面最浅深度
+    max_depth = max(-float(p[4]) for p in prisms)      # 底面最深深度
+    if region is not None:
+        west, east, south, north = region
+        x_min = np.floor(west / g) * g
+        x_max = np.ceil(east / g) * g
+        y_min = np.floor(south / g) * g
+        y_max = np.ceil(north / g) * g
+    else:
+        all_w = min(p[0] for p in prisms)
+        all_e = max(p[1] for p in prisms)
+        all_s = min(p[2] for p in prisms)
+        all_n = max(p[3] for p in prisms)
+        pad_x = max((all_e - all_w) * 0.1, g)
+        pad_y = max((all_n - all_s) * 0.1, g)
+        x_min = np.floor((all_w - pad_x) / g) * g
+        x_max = np.ceil((all_e + pad_x) / g) * g
+        y_min = np.floor((all_s - pad_y) / g) * g
+        y_max = np.ceil((all_n + pad_y) / g) * g
+    pad_z = max((max_depth - min_depth) * 0.1, g)
+    # 深度轴从 0 或更浅处开始更直观（避免出现负深度刻度）
+    z_min = max(0.0, np.floor((min_depth - pad_z) / g) * g)
+    z_max = np.ceil((max_depth + pad_z) / g) * g
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+    ax.set_zlim(z_min, z_max)
+    ax.invert_zaxis()  # 深度向下为正：视觉上“向下更深”
+
+    # 根据各轴范围自动分配刻度间距，避免过密或过疏
+    def _auto_tick_step(span, target_ticks=7):
+        span = float(max(span, 1.0))
+        raw = span / max(target_ticks, 2)
+        mag = 10 ** np.floor(np.log10(raw))
+        norm = raw / mag
+        if norm <= 1:
+            base = 1
+        elif norm <= 2:
+            base = 2
+        elif norm <= 2.5:
+            base = 2.5
+        elif norm <= 5:
+            base = 5
+        else:
+            base = 10
+        return base * mag
+
+    step_x = _auto_tick_step(x_max - x_min, target_ticks=7)
+    step_y = _auto_tick_step(y_max - y_min, target_ticks=7)
+    step_z = _auto_tick_step(z_max - z_min, target_ticks=6)
+    ax.xaxis.set_major_locator(MultipleLocator(step_x))
+    ax.yaxis.set_major_locator(MultipleLocator(step_y))
+    ax.zaxis.set_major_locator(MultipleLocator(step_z))
+
+    # 等比例显示：各轴单位长度一致，网格在视觉上大小统一
+    range_x = x_max - x_min
+    range_y = y_max - y_min
+    range_z = z_max - z_min
+    ax.set_box_aspect((range_x, range_y, range_z))
+
+    ax.set_xlabel("Easting (m)")
+    ax.set_ylabel("Northing (m)")
+    ax.set_zlabel("Depth (m)")
+    ax.view_init(elev=20, azim=-55)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+    print(f"地下异常 3D 图已保存: {save_path}")
+
+
+def _plot_prisms_layout(prisms, image_path, output_dir=None, region=None):
+    """
+    绘制原始长方体分布俯视图（XY 平面）并保存。
+    每个棱柱按其水平投影矩形显示，便于核对模型几何分布。
+    """
+    if not prisms:
+        return
+    out = output_dir if output_dir is not None else OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
+    save_path = os.path.join(out, os.path.basename(image_path))
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    cmap = plt.get_cmap("tab10")
+
+    for i, p in enumerate(prisms):
+        w, e, s, n = p[0], p[1], p[2], p[3]
+        color = cmap(i % 10)
+        xs = [w, e, e, w, w]
+        ys = [s, s, n, n, s]
+        ax.fill(xs, ys, facecolor=color, edgecolor=color, alpha=0.25)
+        ax.plot(xs, ys, color=color, linewidth=1.2)
+        # ax.text((w + e) * 0.5, (s + n) * 0.5, f"{i+1}", color=color, fontsize=9, ha="center", va="center")
+
+    if region is not None:
+        west, east, south, north = region
+    else:
+        west = min(p[0] for p in prisms)
+        east = max(p[1] for p in prisms)
+        south = min(p[2] for p in prisms)
+        north = max(p[3] for p in prisms)
+        pad_x = (east - west) * 0.1 if east > west else 100.0
+        pad_y = (north - south) * 0.1 if north > south else 100.0
+        west, east = west - pad_x, east + pad_x
+        south, north = south - pad_y, north + pad_y
+
+    ax.set_xlim(west, east)
+    ax.set_ylim(south, north)
+    ax.set_aspect("equal")
+    ax.ticklabel_format(style="plain", useOffset=False)
+    ax.set_xlabel("x (m)")
+    ax.set_ylabel("y (m)")
+    ax.grid(True, linestyle="--", linewidth=0.5, alpha=0.4)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+    print(f"原始长方体分布图已保存: {save_path}")
 
 
 def run_four_bodies_example():
@@ -281,12 +464,12 @@ def run_cuboid_example():
     """
     # 棱柱 (西, 东, 南, 北, 底, 顶)，单位 m
     prisms = [
-        [1500, 8500 , 4500, 5500, -2500 , 2500],
+        [150, 850 , 350, 650, -250 , 250],
     ]
     # 密度 kg/m³：基底 / 矿化体×2 / 岩墙 / 东南异常 / 凹陷（相对低）
     densities = [3300]
 
-    region = (0, 10000, 0, 10000)
+    region = (0, 1000, 0, 1000)
     coordinates, g_z = prism_gravity_forward(
         prism=prisms,
         density=densities,
@@ -310,13 +493,13 @@ def run_two_cuboid_example():
     """
     # 棱柱 (西, 东, 南, 北, 底, 顶)，单位 m
     prisms = [
-        [2000, 4000 , 2000, 8000, -2500 , -500],
-        [6000, 8000 , 2000, 8000, -2500 , -500]
+        [200, 400 , 200, 800, -250 , -50],
+        [600, 800 , 200, 800, -250 , -50]
     ]
 
     densities = [3300, 3300 ]
 
-    region = (0, 10000, 0, 10000)
+    region = (0, 1000, 0, 1000)
     coordinates, g_z = prism_gravity_forward(
         prism=prisms,
         density=densities,
@@ -344,24 +527,24 @@ def run_complex_example():
     # 棱柱 (西, 东, 南, 北, 底, 顶)，单位 m，全部落在 [0,10000]×[0,10000]
     prisms = [
 
-        [0, 3000, 9000, 9500, -2500, -500],
-        [2500, 3000, 6500, 9500, -2500, -500],
-        [3000, 5500, 6500, 7000, -2500, -500],
-        [5000, 5500, 4000, 6500, -2500, -500],
-        [5500, 8000, 4000, 4500, -2500, -500],
-        [7500, 8000, 1500, 4000, -2500, -500],
-        [8000, 10000, 1500, 2000, -2500, -500],
+        [0, 300, 900, 950, -250, -50],
+        [250, 300, 650, 950, -250, -50],
+        [300, 550, 650, 700, -250, -50],
+        [500, 550, 400, 650, -250, -50],
+        [550, 800, 400, 450, -250, -50],
+        [750, 800, 150, 400, -250, -50],
+        [800, 1000, 150, 200, -250, -50],
 
-        [1000, 3000, 1000, 2500, -2500, -500],
-        [2000, 3000, 2500, 3500, -2500, -500],
+        [100, 300, 100, 250, -250, -50],
+        [200, 300, 250, 350, -250, -50],
 
-        [7000, 8000, 7500, 9000, -2500, -500],
+        [700, 800, 750, 900, -250, -50],
 
     ]
 
     densities = [3200, 3600, 3600, 3400, 3800, 3800,3800,    2800,2800,3400]
 
-    region = (0, 10000, 0, 10000)
+    region = (0, 1000, 0, 1000)
     coordinates, g_z = prism_gravity_forward(
         prism=prisms,
         density=densities,
@@ -380,11 +563,50 @@ def run_complex_example():
 
 
 
+def run_line_example():
+    """
+    较复杂的重力异常正演示例：多个不同深度、尺度与密度的棱柱，
+    模拟基底隆起、局部高密度体、线性构造等叠加效应。
+    区域为 (0, 10000, 0, 10000)，单位 m。
+    """
+    # 棱柱 (西, 东, 南, 北, 底, 顶)，单位 m，全部落在 [0,10000]×[0,10000]
+    prisms = [
+
+        [300, 700, 0, 1000, -400, -200],
+        # [0, 600, 100, 500, -400, -200],
+        
+    ]
+
+    densities = [1000]
+
+    region = (-200, 1200, -200, 1200)
+    coordinates, g_z = prism_gravity_forward(
+        prism=prisms,
+        density=densities,
+        region=region,
+        shape=(120, 120),
+        height=20.0,
+        field="g_z",
+        image_path="gravity_forward_line.png",
+        npy_path="gravity_forward_line.npy",
+        add_contours=True,
+        cmap="RdYlBu_r",  # 红-黄-蓝，便于区分正负异常
+        output_dir=OUTPUT_DIR,
+    )
+    return coordinates, g_z
+
+
+
 
 if __name__ == "__main__":
     # 运行四地质体（B1–B4）正演示例，与参考图类似
     # coordinates, g_z = run_four_bodies_example()
     # # 运行球体正演示例（棱柱+球体可同时用 spheres 参数）
     coordinates, g_z = run_complex_example()
+    coordinates, g_z = run_line_example()
+    coordinates, g_z = run_two_cuboid_example()
+    # run_cuboid_example
 
-    # coordinates, g_z = run_cuboid_example()
+
+    coordinates, g_z = run_cuboid_example()
+    coordinates, g_z = run_sphere_example()

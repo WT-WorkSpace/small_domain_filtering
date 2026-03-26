@@ -161,13 +161,16 @@ def split_odd_list(lst):
 def get_args():
     parser = argparse.ArgumentParser(description='Subdomain filtering with tangent analysis')
     parser.add_argument('--epoch', type=int, default=5, help='迭代次数')
-    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\complex\gravity_forward_complex.npy", help='重力异常文件地址,目前支持xlsx npy 文件')
+    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\haunghai_gravity.npy", help='重力异常文件地址,目前支持xlsx npy 文件')
     parser.add_argument('--subdomain_size', type=int, default=5, help="子域大小,只能为奇数")
     parser.add_argument('--output', type=str, default="output", help='保存路径')
     parser.add_argument('--vis', type=bool, default=False, help='是否可视化等高线图')
     parser.add_argument('--plot_levels', type=int, default=30, help='绘制等高线的levels')
     parser.add_argument('--plot_type', type=str, default="filled", help='绘制等高线的类型，可选 filled/ contour/ 3d')
-    parser.add_argument('--processes', type=int, default=None, help='并行进程数，默认使用CPU核心数')
+    parser.add_argument('--processes', type=int, default=None, help='并行进程数,默认使用CPU核心数')
+    parser.add_argument('--extent', type=float, nargs=4, default=None, metavar=('LON_MIN', 'LON_MAX', 'LAT_MIN', 'LAT_MAX'),
+                        help='地理范围（经度最小 经度最大 纬度最小 纬度最大），给出后坐标轴显示东经/北纬，如 120 126 36 40')
+    parser.add_argument('--colorbar_interval', type=float, default=5.0, help='色标刻度间隔（如 5 表示每隔 5 一个刻度）')
     args = parser.parse_args()
     return args
 
@@ -182,6 +185,8 @@ if __name__ == "__main__":
     plot_levels = args.plot_levels
     plot_type = args.plot_type
     processes = args.processes if args.processes else cpu_count() - 1
+    extent = tuple(args.extent) if args.extent is not None and len(args.extent) == 4 else None
+    colorbar_interval = args.colorbar_interval
 
     time = get_current_date_formatted()
     stem = Path(file_path).stem
@@ -205,12 +210,25 @@ if __name__ == "__main__":
     print("矩阵大小:", matrix.shape)
 
     # 绘制原始数据等高线
-    plot_contour(matrix,
-                 levels=plot_levels,
-                 title="raw_data",
-                 plot_type=plot_type,
-                 save_path=os.path.join(output_path_png,"raw_data.png"),
-                 show_plot=vis)
+    # plot_contour(matrix,
+    #              levels=plot_levels,
+    #              title="raw_data",
+    #              figsize=(24, 20),
+    #              plot_type=plot_type,
+    #              save_path=os.path.join(output_path_png,"raw_data.png"),
+    #              show_plot=vis)
+
+    plot_contour_huanghai(
+                matrix,
+                levels=plot_levels,
+                plot_type=plot_type,
+                save_path=os.path.join(output_path_png,"raw_data.png"),
+                show_plot=False,
+                show_colorbar=True,
+                extent=extent,
+                colorbar_label="重力异常 / (10⁻⁵ m/s²)",
+                colorbar_interval=colorbar_interval,
+            )
 
     # 计算切线方向
     print("计算切线方向...")
@@ -240,12 +258,36 @@ if __name__ == "__main__":
                 min_mean, min_msd = min_mse_average(odd_list)
                 output_matrix[i, j] = min_mean
 
-        plot_contour(output_matrix,
-                     levels=plot_levels,
-                     title="iter_"+str(i+1)+"data",
-                     plot_type=plot_type,
-                     save_path=os.path.join(output_path_png,"iter_"+str(k+1)+"data.png"),
-                     show_plot=vis)
+        # plot_contour(output_matrix,
+        #              levels=plot_levels,
+        #              title="iter_"+str(i+1)+"data",
+        #              plot_type=plot_type,
+        #              save_path=os.path.join(output_path_png,"iter_"+str(k+1)+"data.png"),
+        #              show_plot=vis)
+
+        plot_contour_huanghai(
+                output_matrix,
+                levels=plot_levels,
+                title="iter_"+str(k+1)+"data",
+                plot_type=plot_type,
+                save_path=os.path.join(output_path_png,"iter_"+str(k+1)+"data.png"),
+                show_plot=False,
+                show_colorbar=True,
+                extent=extent,
+                colorbar_label="重力异常 / (10⁻⁵ m/s²)",
+                colorbar_interval=colorbar_interval,
+            )
+
+        # 保存每次迭代结果到 Excel（写到对应的 xlsx 目录下）
+        iter_xlsx_path = os.path.join(output_path_xlsx, f"iter_{k+1}_result.xlsx")
+        numpy_to_xlsx(output_matrix, iter_xlsx_path)
+        print(f"第 {k+1} 轮迭代结果已导出到 Excel: {iter_xlsx_path}")
+
         matrix = output_matrix
+
+    # 导出最终结果到 Excel
+    final_xlsx_path = os.path.join(output_path_xlsx, "result_final.xlsx")
+    numpy_to_xlsx(matrix, final_xlsx_path)
+    print(f"最终结果已导出到 Excel: {final_xlsx_path}")
 
     print("处理完成，结果已保存至:", output_path)

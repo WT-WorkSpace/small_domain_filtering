@@ -46,14 +46,17 @@ def plot_lines_only_random_color(matrix, lines, save_path=None, show=True):
         raise ValueError("matrix 必须是二维数组")
 
     plt.figure(figsize=(8, 8))
-    plt.imshow(matrix, cmap='gray', origin='upper')
+    # 使用彩色 colormap 替代灰度，避免黑白底色
+    plt.imshow(matrix, cmap='viridis', origin='upper')
 
     for line in lines:
         if len(line) < 2:
             continue
         y_coords, x_coords = zip(*line)
         color = (random.random(), random.random(), random.random())
-        plt.plot(x_coords, y_coords, linewidth=0.5, alpha=0.7, color=color)
+        # 先画一层稍粗的深色描边，再画彩色线，使线段在亮/暗区都清晰可见
+        plt.plot(x_coords, y_coords, linewidth=2.0, color='black', alpha=0.8, zorder=1)
+        plt.plot(x_coords, y_coords, linewidth=1.2, alpha=1.0, color=color, zorder=2)
 
     plt.axis('off')
 
@@ -67,7 +70,7 @@ def plot_lines_only_random_color(matrix, lines, save_path=None, show=True):
 def get_args():
     parser = argparse.ArgumentParser("Multi-angle 1D subdomain filtering with line visualization")
     parser.add_argument('--epoch', type=int, default=5)
-    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\complex\gravity_forward_complex.npy", help='输入文件路径，支持 .xlsx / .npy / .grd')
+    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\tilted_cube_30.xlsx", help='输入文件路径，支持 .xlsx / .npy / .grd')
     parser.add_argument('--subdomain_size', type=int, default=5)
     parser.add_argument('--output', type=str, default='output')
     parser.add_argument('--plot_levels', type=int, default=30)

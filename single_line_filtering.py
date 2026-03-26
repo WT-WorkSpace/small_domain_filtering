@@ -36,7 +36,7 @@ def centered_moving_window_variance(data, window_size):
 def get_args():
     parser = argparse.ArgumentParser(description='one dim Subdomain filtering')
     parser.add_argument('--epoch', type=int, default=5, help='迭代次数')
-    parser.add_argument('--file_path', type=str, default=None, help='重力异常文件地址,目前支持xlsx文件')
+    parser.add_argument('--file_path', type=str, default=r"D:\Code\small_domain_filtering\data\gravity_forward_line1.npy", help='重力异常文件地址，支持 .xlsx 与 .npy')
     parser.add_argument('--subdomain_size', type=int, default=5, help="子域大小,只能为奇数")
     parser.add_argument('--line', type=str, default="row", help="row 行 / column 列")
     parser.add_argument('--num', type=int, default=80, help="取用的行数或者列数")
@@ -56,13 +56,27 @@ if __name__ == "__main__":
     line = args.line
 
     if file_path is not None:
-        if Path(file_path).suffix == ".xlsx":
+        suffix = Path(file_path).suffix.lower()
+        if suffix == ".xlsx":
+            arr = excel_to_numpy(file_path)
             if line == "row":
-                data = excel_to_numpy(file_path)[num, :].tolist()
+                data = arr[num, :].tolist()
             elif line == "column":
-                data = excel_to_numpy(file_path)[:, num].tolist()
+                data = arr[:, num].tolist()
+        elif suffix == ".npy":
+            arr = np.load(file_path)
+            arr = np.asarray(arr)
+            if arr.ndim == 2:
+                if line == "row":
+                    data = arr[num, :].tolist()
+                elif line == "column":
+                    data = arr[:, num].tolist()
+            elif arr.ndim == 1:
+                data = arr.tolist()
+            else:
+                raise ValueError("numpy 数组需为 1D 或 2D")
         else:
-            raise ValueError("暂时不支持其他格式文件")
+            raise ValueError("暂不支持该格式，仅支持 .xlsx 与 .npy")
     else:
         data = [60, 60, 60, 60, 60, 59, 57, 55, 52, 46, 36, 26, 20, 17, 15, 13, 12, 12, 12, 12, 12]
 
